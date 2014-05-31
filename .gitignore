@@ -1,0 +1,5 @@
+obj
+bin
+*.png
+configure.cache
+Makefile
