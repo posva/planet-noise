@@ -6,6 +6,7 @@
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
+#define QUALITY noise::QUALITY_STD
 
 // Southernmost coordinate of elevation grid.
 //const double SOUTH_COORD = -90;
@@ -32,10 +33,10 @@ const int CUR_SEED = 0;
 //const double PLANET_CIRCUMFERENCE = 44236800.0;
 
 // Minimum elevation on the planet, in meters.  This value is approximate.
-const double MIN_ELEV = -8192.0;
+//const double MIN_ELEV = -8192.0;
 
 // Maximum elevation on the planet, in meters.  This value is approximate.
-const double MAX_ELEV = 8192.0;
+//const double MAX_ELEV = 8192.0;
 
 // Frequency of the planet's continents.  Higher frequency produces smaller,
 // more numerous continents.  This value is measured in radians.
@@ -49,6 +50,7 @@ const double CONTINENT_LACUNARITY = 2.208984375;
 // Lacunarity of the planet's mountains.  Changing this value produces
 // slightly different mountains.  For the best results, this value should
 // be random, but close to 2.0.
+// XXX Changed to 4 to test and its the same picture...
 const double MOUNTAIN_LACUNARITY = 2.142578125;
 
 // Lacunarity of the planet's hills.  Changing this value produces slightly
@@ -109,7 +111,7 @@ const double BADLANDS_AMOUNT = 0.03125;
 // the rough areas to appear only at high elevations.  High values (> 2.0)
 // cause the rough areas to appear at any elevation.  The percentage of
 // rough areas on the planet are independent of this value.
-const double TERRAIN_OFFSET = 1.0;
+const double TERRAIN_OFFSET = 1.0; // XXX Changing to 0 drastically changes perfs
 
 // Specifies the amount of "glaciation" on the mountains.  This value
 // should be close to 1.0 and greater than 1.0.
@@ -120,16 +122,32 @@ const double MOUNTAIN_GLACIATION = 1.375;
 const double CONTINENT_HEIGHT_SCALE = (1.0 - SEA_LEVEL) / 4.0;
 
 // Maximum depth of the rivers, in planetary elevation units.
-const double RIVER_DEPTH = 0.0234375;
+const double RIVER_DEPTH = 0.02234375;
 
 using namespace noise;
 
+struct noiseThreadInfo {
+    sf::VertexArray &vertex;
+    noise::module::Module &cache;
+    int x0, x1, y0, y1; // zone to generate
+    noiseThreadInfo(sf::VertexArray &v, noise::module::Module &c,
+            int xx0, int xx1, int yy0, int yy1) :
+        vertex(v),
+        cache(c),
+        x0(xx0),
+        x1(xx1),
+        y0(yy0),
+        y1(yy1)
+    {}
+};
+void generatePlanet(noiseThreadInfo&);
 
 int main()
 {
     // création de la fenêtre
     sf::RenderWindow window(sf::VideoMode(GRID_WIDTH, GRID_HEIGHT), "Noise test");
 
+    sf::Clock cl;
     // noise modules
     // 1: [Continent module]: This Perlin-noise module generates the continents.
     //    This noise module has a high number of octaves so that detail is
@@ -140,7 +158,7 @@ int main()
     baseContinentDef_pe0.SetPersistence (0.5);
     baseContinentDef_pe0.SetLacunarity (CONTINENT_LACUNARITY);
     baseContinentDef_pe0.SetOctaveCount (14);
-    baseContinentDef_pe0.SetNoiseQuality (QUALITY_STD);
+    baseContinentDef_pe0.SetNoiseQuality (QUALITY);
 
     // 2: [Continent-with-ranges module]: Next, a curve module modifies the
     //    output value from the continent module so that very high values appear
@@ -168,7 +186,7 @@ int main()
     baseContinentDef_pe1.SetPersistence (0.5);
     baseContinentDef_pe1.SetLacunarity (CONTINENT_LACUNARITY);
     baseContinentDef_pe1.SetOctaveCount (11);
-    baseContinentDef_pe1.SetNoiseQuality (QUALITY_STD);
+    baseContinentDef_pe1.SetNoiseQuality (QUALITY);
 
     // 4: [Scaled-carver module]: This scale/bias module scales the output
     //    value from the carver module such that it is usually near 1.0.  This
@@ -329,7 +347,7 @@ int main()
     mountainBaseDef_rm0.SetFrequency (1723.0);
     mountainBaseDef_rm0.SetLacunarity (MOUNTAIN_LACUNARITY);
     mountainBaseDef_rm0.SetOctaveCount (4);
-    mountainBaseDef_rm0.SetNoiseQuality (QUALITY_STD);
+    mountainBaseDef_rm0.SetNoiseQuality (QUALITY);
 
     // 2: [Scaled-mountain-ridge module]: Next, a scale/bias module scales the
     //    output value from the mountain-ridge module so that its ridges are not
@@ -863,7 +881,7 @@ int main()
     badlandsCliffs_pe.SetPersistence (0.5);
     badlandsCliffs_pe.SetLacunarity (BADLANDS_LACUNARITY);
     badlandsCliffs_pe.SetOctaveCount (6);
-    badlandsCliffs_pe.SetNoiseQuality (QUALITY_STD);
+    badlandsCliffs_pe.SetNoiseQuality (QUALITY);
 
     // 2: [Cliff-shaping module]: Next, this curve module applies a curve to the
     //    output value from the cliff-basis module.  This curve is initially
@@ -1087,7 +1105,7 @@ int main()
     scaledMountainousTerrain_pe.SetPersistence (0.5);
     scaledMountainousTerrain_pe.SetLacunarity (MOUNTAIN_LACUNARITY);
     scaledMountainousTerrain_pe.SetOctaveCount (6);
-    scaledMountainousTerrain_pe.SetNoiseQuality (QUALITY_STD);
+    scaledMountainousTerrain_pe.SetNoiseQuality (QUALITY);
 
     // 3: [Peak-modulation module]: This exponential-curve module applies an
     //    exponential curve to the output value from the base-peak-modulation
@@ -1165,7 +1183,7 @@ int main()
     scaledHillyTerrain_pe.SetPersistence (0.5);
     scaledHillyTerrain_pe.SetLacunarity (HILLS_LACUNARITY);
     scaledHillyTerrain_pe.SetOctaveCount (6);
-    scaledHillyTerrain_pe.SetNoiseQuality (QUALITY_STD);
+    scaledHillyTerrain_pe.SetNoiseQuality (QUALITY);
 
     // 3: [Hilltop-modulation module]: This exponential-curve module applies an
     //    exponential curve to the output value from the base-hilltop-modulation
@@ -1517,7 +1535,7 @@ int main()
     continentsWithBadlands_pe.SetPersistence (0.5);
     continentsWithBadlands_pe.SetLacunarity (CONTINENT_LACUNARITY);
     continentsWithBadlands_pe.SetOctaveCount (2);
-    continentsWithBadlands_pe.SetNoiseQuality (QUALITY_STD);
+    continentsWithBadlands_pe.SetNoiseQuality (QUALITY);
 
     // 2: [Continents-and-badlands module]:  This addition module adds the
     //    scaled-badlands-terrain group to the base-continent-elevation
@@ -1605,40 +1623,32 @@ int main()
 
     // 4: [Continents-with-rivers subgroup]: Caches the output value from the
     //    blended-rivers-to-continents module.
+    // XXX ce cache c'est de la merde, a refaire pour nos besoins
     module::Cache continentsWithRivers;
     continentsWithRivers.SetSourceModule (0, continentsWithRivers_se);
+
+    std::cout<<"Creating modules: "<<cl.getElapsedTime().asSeconds()<<"\n";
 
     sf::RenderTexture noisetex;
     noisetex.create(GRID_WIDTH, GRID_HEIGHT);
     sf::VertexArray vertex(sf::Points, GRID_WIDTH * GRID_HEIGHT);
-    sf::Clock clock;
-    for (int y = 0; y < GRID_HEIGHT; ++y) {
-        float theta    = y * M_PI / GRID_HEIGHT,
-              sinTheta = sin(theta),
-              cosTheta = cos(theta);
-        for (int x = 0; x < GRID_WIDTH; ++x) {
-            float phi    = x * 2.f * M_PI / GRID_WIDTH,
-                  cosPhi = cos(phi),
-                  sinPhi = sin(phi);
-            float val = continentsWithBadlands.GetValue(
-                    cosPhi * sinTheta,
-                    cosTheta,
-                    sinPhi * sinTheta
-                    );
-            int h = 255*(val+1.f)/2.f;
-            vertex[x + y*GRID_WIDTH].position = sf::Vector2f(x, y);
-            if (val < 0.f)
-                vertex[x + y*GRID_WIDTH].color = sf::Color(0, 0, (val+1.f)*255);
-            else
-                vertex[x + y*GRID_WIDTH].color = sf::Color(h, h, h);
-        }
-    }
-    std::cout<<"Generation time: ("<<GRID_WIDTH<<"x"<<GRID_HEIGHT<<") = "<<clock.getElapsedTime().asSeconds()<<"\n";
 
-    noisetex.clear();
-    noisetex.draw(vertex);
-    noisetex.display();
-    
+    noise::module::Module &cache(continentsWithHills);
+
+    noiseThreadInfo info1(vertex, cache, 0, GRID_WIDTH/2, 0, GRID_HEIGHT/2),
+                    info2(vertex, cache, GRID_WIDTH/2, GRID_WIDTH, 0, GRID_HEIGHT/2),
+                    info3(vertex, cache, 0, GRID_WIDTH/2, GRID_HEIGHT/2, GRID_HEIGHT),
+                    info4(vertex, cache, GRID_WIDTH/2, GRID_WIDTH, GRID_HEIGHT/2, GRID_HEIGHT);
+
+    sf::Thread noise1(&generatePlanet, info1),
+               noise2(&generatePlanet, info2),
+               noise3(&generatePlanet, info3),
+               noise4(&generatePlanet, info4);
+    noise1.launch();
+    noise2.launch();
+    noise3.launch();
+    noise4.launch();
+
     const sf::Texture &tex = noisetex.getTexture();
     sf::Sprite spr(tex);
     float xx = 0.f;
@@ -1660,6 +1670,10 @@ int main()
                 window.close();
             }
         }
+        noisetex.clear();
+        noisetex.draw(vertex);
+        noisetex.display();
+
 
         // effacement de la fenêtre en noir
         window.clear(sf::Color::Black);
@@ -1674,4 +1688,44 @@ int main()
     }
 
     return 0;
+}
+
+sf::Mutex mut[GRID_HEIGHT + GRID_WIDTH];
+void generatePlanet(noiseThreadInfo &info)
+{
+    sf::VertexArray &vertex(info.vertex);
+    noise::module::Module &cache(info.cache);
+    sf::Clock clock;
+    float sc = 1.f; // inverse of zoom
+    float offx = 0.f,
+          offy = 0.f;
+    for (int y = info.y0; y < info.y1; ++y) {
+        float theta    = (sc * y + offy) * M_PI / GRID_HEIGHT,
+              sinTheta = sin(theta),
+              cosTheta = cos(theta);
+        //mut[y].lock();
+        //mut[0].lock();
+        for (int x = info.x0; x < info.x1; ++x) {
+            float phi    = (sc * x + offx) * 2.f * M_PI / GRID_WIDTH,
+                  cosPhi = cos(phi),
+                  sinPhi = sin(phi);
+            //mut[GRID_HEIGHT + x].lock();
+            //std::cerr<<"coord for "<<cosPhi * sinTheta<<","<<cosTheta<<","<<sinPhi * sinTheta<<"\n";
+            float val = cache.GetValue(
+                    cosPhi * sinTheta,
+                    cosTheta,
+                    sinPhi * sinTheta
+                    );
+            //mut[GRID_HEIGHT + x].unlock();
+            int h = 255*(val+1.f)/2.f;
+            vertex[x + y*GRID_WIDTH].position = sf::Vector2f(x, y);
+            if (val < 0.f)
+                vertex[x + y*GRID_WIDTH].color = sf::Color(0, 0, (val+1.f)*255);
+            else
+                vertex[x + y*GRID_WIDTH].color = sf::Color(h, h, h);
+        }
+        //mut[y].unlock();
+        //mut[0].unlock();
+    }
+    std::cout<<"Generation time: ("<<GRID_WIDTH<<"x"<<GRID_HEIGHT<<") = "<<clock.getElapsedTime().asSeconds()<<"\n";
 }

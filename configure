@@ -12,7 +12,7 @@ if [[ ! -x ${CONF} ]]; then
 fi
 
 #Common options between different OS
-OPT="-Wall -Wextra -O2"
+OPT="-Wall -Wextra -O1"
 EXT=cpp
 MAK="Makefile"
 EXEC=src/main.cpp
